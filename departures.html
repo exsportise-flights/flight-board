@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exsportise — Live Departures Board</title>
+<meta http-equiv="refresh" content="60">
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--text:#e2e8f0;--muted:#94a3b8;
+    --blue-bg:#1e3a5f;--blue-fg:#93c5fd;--green-bg:#14532d;--green-fg:#86efac;
+    --grey-bg:#334155;--grey-fg:#cbd5e1;--red-bg:#7f1d1d;--red-fg:#fca5a5;
+    --dkred-bg:#991b1b;--dkred-fg:#ffffff;--amber-bg:#78350f;--amber-fg:#fcd34d;
+    --sea:#5eead4;--hai:#fcd34d;--wor:#c4b5fd;--oun:#93c5fd;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:18px}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-bottom:14px}
+  h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.3px}
+  .updated{color:var(--muted);font-size:14px}.updated b{color:var(--text)}
+  .cards{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
+  .card{background:var(--panel);border-radius:10px;padding:8px 14px;text-align:center;min-width:72px}
+  .card .n{font-size:22px;font-weight:700}.card .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .card.delayed .n{color:var(--red-fg)}.card.gone .n{color:var(--blue-fg)}.card.togo .n{color:var(--green-fg)}
+  .card.sea .n{color:var(--sea)}.card.hai .n{color:var(--hai)}.card.wor .n{color:var(--wor)}.card.oun .n{color:var(--oun)}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:20px 0 8px;border-bottom:1px solid #334155;padding-bottom:6px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px}
+  th.v{text-align:center;width:28px;padding:6px 2px}
+  td{padding:8px 8px;border-top:1px solid #24324480}
+  td.v{text-align:center;font-variant-numeric:tabular-nums;font-weight:700;width:28px;padding:8px 2px}
+  td.sea{color:var(--sea)}td.hai{color:var(--hai)}td.wor{color:var(--wor)}td.oun{color:var(--oun)}
+  td.tot{text-align:center;font-weight:700;width:34px;padding:8px 3px}
+  .z{color:#3f4a5a;font-weight:400}
+  tr:hover td{background:#ffffff08}
+  .flight{font-weight:700;font-size:15px}.route{color:var(--muted)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.3px}
+  .s-gone{background:var(--blue-bg);color:var(--blue-fg)}.s-board{background:var(--green-bg);color:var(--green-fg)}
+  .s-sched{background:var(--grey-bg);color:var(--grey-fg)}.s-delay{background:var(--red-bg);color:var(--red-fg)}
+  .s-cancel{background:var(--dkred-bg);color:var(--dkred-fg)}.s-unknown{background:var(--grey-bg);color:var(--grey-fg)}
+  .delay{font-weight:700;padding:2px 8px;border-radius:6px;font-size:13px}
+  .d-red{background:var(--red-bg);color:var(--red-fg)}.d-amber{background:var(--amber-bg);color:var(--amber-fg)}
+  .d-green{background:var(--green-bg);color:var(--green-fg)}.d-blue{background:var(--blue-bg);color:var(--blue-fg)}.d-none{color:var(--muted)}
+  .time{font-variant-numeric:tabular-nums;font-weight:600}.muted{color:var(--muted)}
+  .leave{color:var(--amber-fg);font-size:12px;font-variant-numeric:tabular-nums}
+  footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:6px;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  #err{background:var(--red-bg);color:var(--red-fg);padding:10px 14px;border-radius:8px;margin:10px 0;display:none}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>&#9992; Exsportise &mdash; Live Departures Board</h1>
+  <div class="updated" id="updated">Loading&hellip;</div></div>
+  <div class="cards" id="cards"></div>
+</header>
+<div id="err"></div>
+<div id="content"></div>
+<footer><span class="dot"></span>Auto-refreshes every 60 seconds &middot; &quot;Leave by&quot; = latest safe coach departure per centre &middot; <span id="clock"></span></footer>
+
+<script>document.write('<scr'+'ipt src="dep-data.js?t='+Date.now()+'"><\/scr'+'ipt>');</script>
+<script>
+function clock(){var d=new Date();var c=document.getElementById('clock');if(c)c.textContent='Now '+d.toTimeString().slice(0,5);}
+clock();setInterval(clock,1000);
+function statusClass(s){s=(s||'').toUpperCase();
+  if(s.indexOf('DEPART')>-1&&s.indexOf('DELAY')<0||s.indexOf('AIRBORNE')>-1||s.indexOf('EN ROUTE')>-1)return['s-gone','DEPARTED'];
+  if(s.indexOf('CANCEL')>-1||s.indexOf('DIVERT')>-1)return['s-cancel',s];
+  if(s.indexOf('DELAY')>-1)return['s-delay','DELAYED'];
+  if(s.indexOf('BOARD')>-1||s.indexOf('GATE')>-1||s.indexOf('FINAL')>-1)return['s-board',s];
+  if(s.indexOf('SCHEDULE')>-1||s.indexOf('ON TIME')>-1)return['s-sched','SCHEDULED'];
+  return['s-unknown',s||'--'];}
+function gone(s){s=(s||'').toUpperCase();return (s.indexOf('DEPART')>-1&&s.indexOf('DELAY')<0)||s.indexOf('AIRBORNE')>-1||s.indexOf('EN ROUTE')>-1||s.indexOf('LANDED')>-1;}
+function vcell(n,cls){if(!n)return '<td class="v z">0</td>';return '<td class="v '+cls+'">'+n+'</td>';}
+function delayBadge(d){
+  if(d===''||d===null||d===undefined)return '<span class="delay d-none">--</span>';
+  var n=parseInt(String(d).replace('+',''),10);
+  if(isNaN(n))return '<span class="delay d-none">'+d+'</span>';
+  var label=(n>0?'+'+n:''+n)+'m';
+  if(n>15)return '<span class="delay d-red">'+label+'</span>';
+  if(n>0)return '<span class="delay d-amber">'+label+'</span>';
+  return '<span class="delay d-green">'+label+'</span>';}
+function tmin(t){var m=/(\d{1,2}):(\d{2})/.exec(t||'');return m?(+m[1]*60+ +m[2]):9999;}
+function card(cls,n,l){return '<div class="card '+cls+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';}
+function section(title,list,departed){
+  if(!list.length)return '';
+  var sub=[0,0,0,0],st=0;
+  list.forEach(function(r){var v=r.v||[0,0,0,0];for(var i=0;i<4;i++)sub[i]+=v[i];st+=r.students||0;});
+  var h='<h2>'+title+' ('+list.length+' flights &middot; '+st+' students)</h2><table><thead><tr>'+
+    '<th>Flight</th><th class="v" title="Seaford">Sea</th><th class="v" title="Haileybury">Hai</th><th class="v" title="Worth">Wor</th><th class="v" title="Oundle">Oun</th><th class="v">Tot</th>'+
+    '<th>To</th><th>Airport</th><th>Sched dep</th><th>'+(departed?'Departed':'Est dep')+'</th><th>Status</th><th>Delay</th>'+(departed?'':'<th>Leave centre by</th>')+'</tr></thead><tbody>';
+  list.forEach(function(r){var sc=statusClass(r.status);var v=r.v||[0,0,0,0];
+    var t=departed?(r.actual||r.est||''):(r.est||r.sched||'');
+    h+='<tr><td class="flight">'+r.flight+'</td>'+
+      vcell(v[0],'sea')+vcell(v[1],'hai')+vcell(v[2],'wor')+vcell(v[3],'oun')+
+      '<td class="tot">'+(r.students||0)+'</td>'+
+      '<td class="route">'+r.to+'</td><td>'+r.airport+'</td>'+
+      '<td class="time muted">'+(r.sched||'')+'</td><td class="time">'+(t||'<span class="muted">--</span>')+'</td>'+
+      '<td><span class="pill '+sc[0]+'">'+sc[1]+'</span></td><td>'+delayBadge(r.delay)+'</td>'+
+      (departed?'':'<td class="leave">'+(r.leaveby||'')+'</td>')+'</tr>';});
+  return h+'</tbody></table>';}
+function render(){
+  var F=window.DEPARTURES;
+  if(!F||!F.rows){document.getElementById('err').style.display='block';document.getElementById('err').textContent='Waiting for dep-data.js (keep it in the same folder as this page).';return;}
+  var rows=F.rows;
+  document.getElementById('updated').innerHTML='Data as of <b>'+(F.updated||'?')+'</b> &middot; '+rows.length+' flights';
+  var departed=rows.filter(function(r){return gone(r.status);});
+  var togo=rows.filter(function(r){return !gone(r.status);});
+  var delayed=togo.filter(function(r){var n=parseInt(String(r.delay).replace('+',''),10);return !isNaN(n)&&n>15;});
+  var vt=[0,0,0,0];rows.forEach(function(r){var v=r.v||[0,0,0,0];for(var i=0;i<4;i++)vt[i]+=v[i];});
+  document.getElementById('cards').innerHTML=
+    card('togo',togo.length,'To depart')+card('gone',departed.length,'Departed')+card('delayed',delayed.length,'Delayed 15+')+
+    card('sea',vt[0],'Seaford')+card('hai',vt[1],'Haileybury')+card('wor',vt[2],'Worth')+card('oun',vt[3],'Oundle');
+  togo.sort(function(a,b){return tmin(a.est||a.sched)-tmin(b.est||b.sched);});
+  departed.sort(function(a,b){return tmin(a.actual||a.sched)-tmin(b.actual||b.sched);});
+  document.getElementById('content').innerHTML=section('Still to depart',togo,false)+section('Departed',departed,true);}
+window.addEventListener('load',render);
+</script>
+</body>
+</html>
