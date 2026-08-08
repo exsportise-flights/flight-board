@@ -49,6 +49,7 @@
 <body>
 <header>
   <div><h1>&#9992; Exsportise &mdash; Live Flight Board</h1>
+  <div class="updated" id="now" style="font-size:15px">&nbsp;</div>
   <div class="updated" id="updated">Loading&hellip;</div></div>
   <div class="cards" id="cards"></div>
 </header>
@@ -58,9 +59,9 @@
 
 <!-- Load the data file fresh each reload (cache-busted). The task only ever rewrites this small file. -->
 <script>document.write('<scr'+'ipt src="flights-data.js?t='+Date.now()+'"><\/scr'+'ipt>');</script>
-
 <script>
-function clock(){var d=new Date();var c=document.getElementById('clock');if(c)c.textContent='Now '+d.toTimeString().slice(0,5);}
+function londonNow(){return new Date().toLocaleString('en-GB',{timeZone:'Europe/London',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
+function clock(){var t=londonNow();var n=document.getElementById('now');if(n)n.innerHTML='&#128337; '+t+' &middot; <b>GMT/BST</b>';var c=document.getElementById('clock');if(c)c.textContent='Now '+t;}
 clock();setInterval(clock,1000);
 function statusClass(s){s=(s||'').toUpperCase();
   if(s.indexOf('LAND')>-1||s.indexOf('ARRIV')>-1)return['s-landed','LANDED'];
