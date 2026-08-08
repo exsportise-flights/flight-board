@@ -50,6 +50,7 @@
 <body>
 <header>
   <div><h1>&#9992; Exsportise &mdash; Live Departures Board</h1>
+  <div class="updated" id="now" style="font-size:15px">&nbsp;</div>
   <div class="updated" id="updated">Loading&hellip;</div></div>
   <div class="cards" id="cards"></div>
 </header>
@@ -59,7 +60,9 @@
 
 <script>document.write('<scr'+'ipt src="dep-data.js?t='+Date.now()+'"><\/scr'+'ipt>');</script>
 <script>
-function clock(){var d=new Date();var c=document.getElementById('clock');if(c)c.textContent='Now '+d.toTimeString().slice(0,5);}
+function londonNow(){return new Date().toLocaleString('en-GB',{timeZone:'Europe/London',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
+function nowMin(){var s=new Date().toLocaleString('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false});var m=/(\d{1,2}):(\d{2})/.exec(s);return m?(+m[1]*60+ +m[2]):0;}
+function clock(){var t=londonNow();var n=document.getElementById('now');if(n)n.innerHTML='&#128337; '+t+' &middot; <b>GMT/BST</b>';var c=document.getElementById('clock');if(c)c.textContent='Now '+t;}
 clock();setInterval(clock,1000);
 function statusClass(s){s=(s||'').toUpperCase();
   if(s.indexOf('DEPART')>-1&&s.indexOf('DELAY')<0||s.indexOf('AIRBORNE')>-1||s.indexOf('EN ROUTE')>-1)return['s-gone','DEPARTED'];
@@ -69,6 +72,8 @@ function statusClass(s){s=(s||'').toUpperCase();
   if(s.indexOf('SCHEDULE')>-1||s.indexOf('ON TIME')>-1)return['s-sched','SCHEDULED'];
   return['s-unknown',s||'--'];}
 function gone(s){s=(s||'').toUpperCase();return (s.indexOf('DEPART')>-1&&s.indexOf('DELAY')<0)||s.indexOf('AIRBORNE')>-1||s.indexOf('EN ROUTE')>-1||s.indexOf('LANDED')>-1;}
+function isTrain(r){return (r.airport||'').toUpperCase().indexOf('STP')>-1;}
+function goneRow(r){if(gone(r.status))return true;if(isTrain(r)){var t=tmin(r.est||r.sched);if(t<9999&&t<=nowMin())return true;}return false;}
 function vcell(n,cls){if(!n)return '<td class="v z">0</td>';return '<td class="v '+cls+'">'+n+'</td>';}
 function delayBadge(d){
   if(d===''||d===null||d===undefined)return '<span class="delay d-none">--</span>';
@@ -88,6 +93,7 @@ function section(title,list,departed){
     '<th>Flight</th><th class="v" title="Seaford">Sea</th><th class="v" title="Haileybury">Hai</th><th class="v" title="Worth">Wor</th><th class="v" title="Oundle">Oun</th><th class="v">Tot</th>'+
     '<th>To</th><th>Airport</th><th>Sched dep</th><th>'+(departed?'Departed':'Est dep')+'</th><th>Status</th><th>Delay</th>'+(departed?'':'<th>Leave centre by</th>')+'</tr></thead><tbody>';
   list.forEach(function(r){var sc=statusClass(r.status);var v=r.v||[0,0,0,0];
+    if(departed&&isTrain(r)&&(r.status||'').toUpperCase().indexOf('DEPART')<0)sc=['s-gone','DEPARTED'];
     var t=departed?(r.actual||r.est||''):(r.est||r.sched||'');
     h+='<tr><td class="flight">'+r.flight+'</td>'+
       vcell(v[0],'sea')+vcell(v[1],'hai')+vcell(v[2],'wor')+vcell(v[3],'oun')+
@@ -102,8 +108,8 @@ function render(){
   if(!F||!F.rows){document.getElementById('err').style.display='block';document.getElementById('err').textContent='Waiting for dep-data.js (keep it in the same folder as this page).';return;}
   var rows=F.rows;
   document.getElementById('updated').innerHTML='Data as of <b>'+(F.updated||'?')+'</b> &middot; '+rows.length+' flights';
-  var departed=rows.filter(function(r){return gone(r.status);});
-  var togo=rows.filter(function(r){return !gone(r.status);});
+  var departed=rows.filter(function(r){return goneRow(r);});
+  var togo=rows.filter(function(r){return !goneRow(r);});
   var delayed=togo.filter(function(r){var n=parseInt(String(r.delay).replace('+',''),10);return !isNaN(n)&&n>15;});
   var vt=[0,0,0,0];rows.forEach(function(r){var v=r.v||[0,0,0,0];for(var i=0;i<4;i++)vt[i]+=v[i];});
   document.getElementById('cards').innerHTML=
